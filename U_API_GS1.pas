@@ -124,7 +124,6 @@ type
     FImagens: TImagens;
     FCodigoPais: String;
     FCodigoLingua: String;
-    FIdAgencia: Integer;
     FTipoGTIN: TTipoGTIN;
     FSegmento: Integer;
     FDescricao: String;
@@ -143,6 +142,7 @@ type
     FDataLancamento: TDateTime;
     FCompartilhaDados: Boolean;
     FCESTs: TCESTs;
+    FAgencia: TTipoAgencia;
     procedure SetAceiteTermo(const Value: Boolean);
     procedure SetClasse(const Value: Integer);
     procedure SetCodigoLingua(const Value: String);
@@ -153,7 +153,6 @@ type
     procedure SetDescricao(const Value: String);
     procedure SetFamilia(const Value: Integer);
     procedure SetGTIN(const Value: String);
-    procedure SetIdAgencia(const Value: Integer);
     procedure SetImagens(const Value: TImagens);
     procedure SetMarca(const Value: String);
     procedure SetModelo(const Value: String);
@@ -167,6 +166,7 @@ type
     procedure SetTipoGTIN(const Value: TTipoGTIN);
     procedure SetUnidadeMedida(const Value: String);
     procedure SetCESTs(const Value: TCESTs);
+    procedure SetAgencia(const Value: TTipoAgencia);
   protected
     { protected declarations }
     function GetJson: String;
@@ -197,7 +197,7 @@ type
     property NCM: String read FNCM write SetNCM;
     property Modelo: String read FModelo write SetModelo;
     property TipoGTIN: TTipoGTIN read FTipoGTIN write SetTipoGTIN default tgGTIN13;
-    property IdAgencia: Integer read FIdAgencia write SetIdAgencia;
+    property Agencia: TTipoAgencia read FAgencia write SetAgencia;
     property NomeAgencia: String read FNomeAgencia write SetNomeAgencia;
 
     function Incluir: Boolean;
@@ -305,11 +305,18 @@ begin
   Format('    "IndicadorCompartilhaDados": %d,', [Integer(CompartilhaDados)])+
   Format('    "importClassificationValue": "%s",', [NCM])+
   Format('    "modelNumber": "%s",', [Modelo])+
-  Format('    "CodigoTipoGTIN": %d,', [TipoGtinToInt(TipoGTIN)])+
-  '    "agency": {'+
-  Format('      "id": %d,', [IdAgencia])+
-  Format('      "alternateItemIdentificationId": "%s"', [NomeAgencia])+
-  '    }'+
+  Format('    "CodigoTipoGTIN": %d', [TipoGtinToInt(TipoGTIN)]);
+
+  if Agencia <> agNenhum then
+  begin
+    Result := Result +
+    '    ,"agency": {'+
+    Format('      "id": %d,', [AgenciaToInt(Agencia)])+
+    Format('      "alternateItemIdentificationId": "%s"', [NomeAgencia])+
+    '    }';
+  end;
+
+  Result := Result +
   '  }'+
   '}';
 end;
@@ -460,6 +467,11 @@ begin
   FAceiteTermo := Value;
 end;
 
+procedure TAPI_GS1.SetAgencia(const Value: TTipoAgencia);
+begin
+  FAgencia := Value;
+end;
+
 procedure TAPI_GS1.SetCESTs(const Value: TCESTs);
 begin
   FCESTs := Value;
@@ -508,11 +520,6 @@ end;
 procedure TAPI_GS1.SetGTIN(const Value: String);
 begin
   FGTIN := Trim(Value);
-end;
-
-procedure TAPI_GS1.SetIdAgencia(const Value: Integer);
-begin
-  FIdAgencia := Value;
 end;
 
 procedure TAPI_GS1.SetImagens(const Value: TImagens);

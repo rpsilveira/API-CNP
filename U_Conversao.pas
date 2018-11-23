@@ -46,12 +46,14 @@ type
   TAmbiente = (taProducao, taHomologacao);
   TTipoGTIN = (tgGTIN8, tgGTIN12, tgGTIN13, tgGTIN14);
   TTipoURL = (tuFoto, tuReserva, tuLinkeddata, tuYoutube, tuProduto);
-  TStatusGTIN = (stAtivo, stCancealdo, stSuspenso, stReativado);
+  TStatusGTIN = (stAtivo, stCancelado, stSuspenso, stReativado);
+  TTipoAgencia = (agNenhum, agANVISA, agINMETRO, agANATEL, agMAPA);
   TTipoRequisicao = (trPOST, trPUT);
 
 function TipoUrlToInt(pTipoURL: TTipoURL): Integer;
 function TipoGtinToInt(pTipoGTIN: TTipoGTIN): Integer;
 function StatusGtinToInt(pStatusGTIN: TStatusGTIN): Integer;
+function AgenciaToInt(pAgencia: TTipoAgencia): Integer;
 function FloatToString(pValue: Double): String;
 
 implementation
@@ -85,9 +87,21 @@ function StatusGtinToInt(pStatusGTIN: TStatusGTIN): Integer;
 begin
   case pStatusGTIN of
     stAtivo    : Result := 1;
-    stCancealdo: Result := 2;
+    stCancelado: Result := 2;
     stSuspenso : Result := 3;
     stReativado: Result := 4;
+  else
+    Result := 0;
+  end;
+end;
+
+function AgenciaToInt(pAgencia: TTipoAgencia): Integer;
+begin
+  case pAgencia of
+    agANVISA : Result := 1;
+    agINMETRO: Result := 2;
+    agANATEL : Result := 3;
+    agMAPA   : Result := 4;
   else
     Result := 0;
   end;

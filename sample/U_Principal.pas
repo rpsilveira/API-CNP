@@ -134,7 +134,7 @@ begin
   api.PaisOrigem       := 76;  //Brasil
   api.CompartilhaDados := True;
   api.NCM              := '3815.12.10';  //Nomenclatura Comum do Mercosul
-  api.IdAgencia        := 1;  //1-ANVISA, 2-INMETRO, 3-ANATEL, 4-MAPA
+  api.Agencia          := agANVISA;
   api.NomeAgencia      := 'ANVISA';  //nome da agência reguladora
 
   api.CESTs.Add.Codigo := '20.042.00';  //Código Especificador da Substituição Tributária, pode haver até 3 por produto
