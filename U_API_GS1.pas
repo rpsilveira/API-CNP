@@ -448,12 +448,22 @@ begin
 
     if Assigned(JsonObj) then
     begin
-      JsonPair := JsonObj.Get('globalTradeItemNumber');
-
-      if Assigned(JsonPair) then
+      if pTipoReq = trPUT then  //alteração
       begin
-        GTIN := Trim(StringReplace(JsonPair.JsonValue.ToString, '"', '', [rfReplaceAll]));
-        Result := GTIN <> '';
+        JsonPair := JsonObj.Get('ok');
+
+        if Assigned(JsonPair) then
+          Result := JsonPair.JsonValue.ToString = '1';
+      end
+      else  //inclusão
+      begin
+        JsonPair := JsonObj.Get('globalTradeItemNumber');
+
+        if Assigned(JsonPair) then
+        begin
+          GTIN := Trim(StringReplace(JsonPair.JsonValue.ToString, '"', '', [rfReplaceAll]));
+          Result := GTIN <> '';
+        end;
       end;
     end;
   finally
