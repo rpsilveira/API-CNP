@@ -202,9 +202,11 @@ begin
       end;
 
   if api.Incluir then
+  begin
+    edtGTIN.Text := api.GTIN;  //após inserido, a property é preenchida com o novo GTIN gerado
     ShowMessage('Operação realizada com sucesso!');
+  end;
 
-  edtGTIN.Text       := api.GTIN;  //após inserido, a property é preenchida com o novo GTIN gerado
   edtToken.Text      := api.Configuracoes.Token;  //armazene o token e a data de expiração no banco de dados, para usar em requisições futuras
   edtExpiration.Text := DateTimeToStr(api.Configuracoes.Expiration);  //o token é gerado com validade de 4 horas
 end;
@@ -275,7 +277,6 @@ begin
   if api.Alterar then
     ShowMessage('Operação realizada com sucesso!');
 
-  edtGTIN.Text       := api.GTIN;  //após inserido, a property é preenchida com o novo GTIN gerado
   edtToken.Text      := api.Configuracoes.Token;  //armazene o token e a data de expiração no banco de dados, para usar em requisições futuras
   edtExpiration.Text := DateTimeToStr(api.Configuracoes.Expiration);  //o token é gerado com validade de 4 horas
 end;
@@ -336,7 +337,6 @@ begin
     ShowMessage('Operação realizada com sucesso!');
   end;
 
-  edtGTIN.Text       := api.GTIN;  //após inserido, a property é preenchida com o novo GTIN gerado
   edtToken.Text      := api.Configuracoes.Token;  //armazene o token e a data de expiração no banco de dados, para usar em requisições futuras
   edtExpiration.Text := DateTimeToStr(api.Configuracoes.Expiration);  //o token é gerado com validade de 4 horas
 end;
