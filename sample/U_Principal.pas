@@ -188,10 +188,12 @@ begin
   api.Agencia          := TTipoAgencia(cbxAgencia.ItemIndex);
   api.NomeAgencia      := edtAgencia.Text;  //nome da agência reguladora
 
+  api.CESTs.Clear;
   for i := 0 to memCEST.Lines.Count -1 do
     if memCEST.Lines[i] <> '' then
       api.CESTs.Add.Codigo := memCEST.Lines[i];  //Código Especificador da Substituição Tributária, pode haver até 3 por produto
 
+  api.Imagens.Clear;
   for i := 0 to memImagens.Lines.Count -1 do
     if memImagens.Lines[i] <> '' then
       with api.Imagens.Add do  //adicione quantas imagens desejar
@@ -261,10 +263,12 @@ begin
   api.Agencia          := TTipoAgencia(cbxAgencia.ItemIndex);
   api.NomeAgencia      := edtAgencia.Text;  //nome da agência reguladora
 
+  api.CESTs.Clear;
   for i := 0 to memCEST.Lines.Count -1 do
     if memCEST.Lines[i] <> '' then
       api.CESTs.Add.Codigo := memCEST.Lines[i];  //Código Especificador da Substituição Tributária, pode haver até 3 por produto
 
+  api.Imagens.Clear;
   for i := 0 to memImagens.Lines.Count -1 do
     if memImagens.Lines[i] <> '' then
       with api.Imagens.Add do  //adicione quantas imagens desejar

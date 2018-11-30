@@ -386,6 +386,7 @@ begin
 
       JsonArray := TJSONObject.ParseJSONValue(GetJsonValue(JsonObj, 'CEST')) as TJSONArray;
 
+      CESTs.Clear;
       if Assigned(JsonArray) then
       begin
         for JsonValue in JsonArray do
@@ -394,6 +395,7 @@ begin
 
       JsonArray := TJSONObject.ParseJSONValue(GetJsonValue(JsonObj, 'images')) as TJSONArray;
 
+      Imagens.Clear;
       if Assigned(JsonArray) then
         for JsonValue in JsonArray do
         begin
