@@ -202,7 +202,8 @@ type
 
     function Incluir: Boolean;
     function Alterar: Boolean;
-    function ObtemToken: Boolean;
+    function Consultar: Boolean;
+    function ObterToken: Boolean;
   published
     { published declarations }
     property Configuracoes: TConfiguracoes read FConfiguracoes write SetConfiguracoes;
@@ -243,6 +244,183 @@ begin
   IdHTTP.Free;
   IdIOSocket.Free;
   inherited;
+end;
+
+function TAPI_GS1.ObterToken: Boolean;
+var
+  JsonStreamRetorno, JsonStreamEnvio: TStringStream;
+  JsonObj: TJSONObject;
+  JsonPair: TJSONPair;
+  dthr: TDateTime;
+  json: String;
+begin
+  if Configuracoes.Username = '' then
+    raise Exception.CreateFmt('Username %s', [isRequired]);
+  if Configuracoes.Password = '' then
+    raise Exception.CreateFmt('Password %s', [isRequired]);
+  if Configuracoes.CNPJ_CPF = '' then
+    raise Exception.CreateFmt('CNPJ/CPF %s', [isRequired]);
+  if Configuracoes.ClientID = '' then
+    raise Exception.CreateFmt('ClientID %s', [isRequired]);
+  if Configuracoes.Secret = '' then
+    raise Exception.CreateFmt('Secret %s', [isRequired]);
+
+  json := '{"grant_type": "password",'+
+  Format('"username" : "%s",', [Configuracoes.Username])+
+  Format('"password" : "%s",', [Configuracoes.Password])+
+  Format('"cpfCnpj" : "%s"}', [Configuracoes.CNPJ_CPF]);
+
+  JsonStreamEnvio   := TStringStream.Create(json, TEncoding.UTF8);
+  JsonStreamRetorno := TStringStream.Create('', TEncoding.UTF8);
+  Result := False;
+
+  try
+    IdHTTP.Request.Username := Configuracoes.ClientID;
+    IdHTTP.Request.Password := Configuracoes.Secret;
+
+    try
+      dthr := Now;
+
+      IdHTTP.Post(URL_TOKEN, JsonStreamEnvio, JsonStreamRetorno);
+      JsonStreamRetorno.Position := 0;
+
+      try
+        JsonObj := TJSONObject.ParseJSONValue(JsonStreamRetorno.DataString) as TJSONObject;
+      except
+        raise Exception.Create(JsonStreamRetorno.DataString);
+      end;
+
+      JsonPair := JsonObj.Get('access_token');
+
+      if Assigned(JsonPair) then
+        Configuracoes.Token := AnsiDequotedStr(JsonPair.JsonValue.ToString, '"');
+
+      JsonPair := JsonObj.Get('expires_in');
+
+      if Assigned(JsonPair) then
+        Configuracoes.Expiration := IncSecond(dthr, StrToIntDef(JsonPair.JsonValue.ToString,0));
+
+      Result := (Configuracoes.Token <> '') and (Configuracoes.Expiration > dthr);
+    except
+      on E: EIdHTTPProtocolException do
+        raise Exception.Create(E.ErrorMessage);
+    end;
+  finally
+    JsonStreamEnvio.Free;
+    JsonStreamRetorno.Free;
+  end;
+end;
+
+function TAPI_GS1.Consultar: Boolean;
+var
+  JsonStreamRetorno: TStringStream;
+  JsonObj, JsonObjAux: TJSONObject;
+  JsonArray: TJSONArray;
+  JsonValue: TJSONValue;
+
+  function GetJsonValue(pObj: TJSONObject; pKey: String): String;
+  var JsonPair: TJSONPair;
+  begin
+    JsonPair := pObj.Get(pKey);
+
+    if Assigned(JsonPair) then
+      Result := AnsiDequotedStr(JsonPair.JsonValue.ToString, '"')
+    else
+      Result := '';
+  end;
+begin
+  Result := False;
+
+  JsonStreamRetorno := TStringStream.Create('', TEncoding.UTF8);
+
+  if Configuracoes.ClientID = '' then
+    raise Exception.CreateFmt('ClientID %s', [isRequired]);
+  if GTIN = '' then
+    raise Exception.CreateFmt('GTIN %s', [isRequired]);
+
+  if (Configuracoes.Token = '') or (Configuracoes.Expiration < Now) then
+    ObterToken;
+
+  try
+    IdHTTP.Request.CustomHeaders.Clear;
+    IdHTTP.Request.CustomHeaders.AddValue('client_id', Configuracoes.ClientID);
+    IdHTTP.Request.CustomHeaders.AddValue('access_token', Configuracoes.Token);
+
+    try
+      case Configuracoes.Ambiente of
+        taProducao   : IdHTTP.Get(URL_PRODUCAO +'/'+ GTIN, JsonStreamRetorno);
+        taHomologacao: IdHTTP.Get(URL_HOMOLOGACAO +'/'+ GTIN, JsonStreamRetorno);
+      end;
+    except
+      on E: EIdHTTPProtocolException do
+        raise Exception.Create(E.ErrorMessage);
+    end;
+
+    JsonStreamRetorno.Position := 0;
+
+    try
+      JsonObj := TJSONObject.ParseJSONValue(JsonStreamRetorno.DataString) as TJSONObject;
+    except
+      raise Exception.Create(JsonStreamRetorno.DataString);
+    end;
+
+    if Assigned(JsonObj) then
+    begin
+      GTIN           := GetJsonValue(JsonObj, 'globalTradeItemNumber');
+      Descricao      := GetJsonValue(JsonObj, 'productDescription');
+      PesoBruto      := StringToFloat(GetJsonValue(JsonObj, 'grossWeight'));
+      UnidadeMedida  := GetJsonValue(JsonObj, 'grossWeightMeasurementUnitCode');
+      DataLancamento := StringToDateTime(GetJsonValue(JsonObj, 'startAvailabilityDateTime'));
+      StatusGTIN     := TStatusGTIN(StrToIntDef(GetJsonValue(JsonObj, 'CodigoStatusGTIN'), 0));
+      Segmento       := StrToIntDef(GetJsonValue(JsonObj, 'CodeSegment'), 0);
+      Familia        := StrToIntDef(GetJsonValue(JsonObj, 'CodeFamily'), 0);
+      Classe         := StrToIntDef(GetJsonValue(JsonObj, 'CodeClass'), 0);
+      Subclasse      := StrToIntDef(GetJsonValue(JsonObj, 'CodeBrick'), 0);
+      Marca          := GetJsonValue(JsonObj, 'brandName');
+      CodigoPais     := GetJsonValue(JsonObj, 'countryCode');
+      CodigoLingua   := GetJsonValue(JsonObj, 'CodigoLingua');
+      PaisOrigem     := StrToIntDef(GetJsonValue(JsonObj, 'tradeItemCountryOfOrigin'), 0);
+      NCM            := GetJsonValue(JsonObj, 'importClassificationValue');
+      Modelo         := GetJsonValue(JsonObj, 'modelNumber');
+      TipoGTIN       := TTipoGTIN(StrToIntDef(GetJsonValue(JsonObj, 'CodigoTipoGTIN'), 0));
+
+      JsonArray := TJSONObject.ParseJSONValue(GetJsonValue(JsonObj, 'CEST')) as TJSONArray;
+
+      if Assigned(JsonArray) then
+      begin
+        for JsonValue in JsonArray do
+          CESTs.Add.Codigo := AnsiDequotedStr(JsonValue.ToString, '"');
+      end;
+
+      JsonArray := TJSONObject.ParseJSONValue(GetJsonValue(JsonObj, 'images')) as TJSONArray;
+
+      if Assigned(JsonArray) then
+        for JsonValue in JsonArray do
+        begin
+          JsonObjAux := TJSONObject.ParseJSONValue(JsonValue.ToString) as TJSONObject;
+
+          if Assigned(JsonObjAux) then
+            with Imagens.Add do
+            begin
+              URL     := GetJsonValue(JsonObjAux, 'URL');
+              Nome    := GetJsonValue(JsonObjAux, 'Nome');
+              TipoURL := TTipoURL(StrToIntDef(GetJsonValue(JsonObjAux, 'CodigoTipoURL'), 0));
+            end;
+        end;
+
+      JsonObjAux := TJSONObject.ParseJSONValue(GetJsonValue(JsonObj, 'agency')) as TJSONObject;
+
+      if Assigned(JsonObjAux) then
+      begin
+        Agencia     := TTipoAgencia(StrTointDef(GetJsonValue(JsonObjAux, 'id'), 0));
+        NomeAgencia := GetJsonValue(JsonObjAux, 'alternateItemIdentificationId');
+      end;
+
+      Result := GTIN <> '';
+    end;
+  finally
+    JsonStreamRetorno.Free;
+  end;
 end;
 
 function TAPI_GS1.GetJson: String;
@@ -307,7 +485,7 @@ begin
   Format('    "modelNumber": "%s",', [Modelo])+
   Format('    "CodigoTipoGTIN": %d', [TipoGtinToInt(TipoGTIN)]);
 
-  if Agencia <> agNenhum then
+  if Agencia <> agNenhuma then
   begin
     Result := Result +
     '    ,"agency": {'+
@@ -319,71 +497,6 @@ begin
   Result := Result +
   '  }'+
   '}';
-end;
-
-function TAPI_GS1.ObtemToken: Boolean;
-var
-  JsonStreamRetorno, JsonStreamEnvio: TStringStream;
-  JsonObj: TJSONObject;
-  JsonPair: TJSONPair;
-  dthr: TDateTime;
-  json: String;
-begin
-  if Configuracoes.Username = '' then
-    raise Exception.CreateFmt('Username %s', [isRequired]);
-  if Configuracoes.Password = '' then
-    raise Exception.CreateFmt('Password %s', [isRequired]);
-  if Configuracoes.CNPJ_CPF = '' then
-    raise Exception.CreateFmt('CNPJ/CPF %s', [isRequired]);
-  if Configuracoes.ClientID = '' then
-    raise Exception.CreateFmt('ClientID %s', [isRequired]);
-  if Configuracoes.Secret = '' then
-    raise Exception.CreateFmt('Secret %s', [isRequired]);
-
-  json := '{"grant_type": "password",'+
-  Format('"username" : "%s",', [Configuracoes.Username])+
-  Format('"password" : "%s",', [Configuracoes.Password])+
-  Format('"cpfCnpj" : "%s"}', [Configuracoes.CNPJ_CPF]);
-
-  JsonStreamEnvio   := TStringStream.Create(json, TEncoding.UTF8);
-  JsonStreamRetorno := TStringStream.Create('', TEncoding.UTF8);
-  Result := False;
-
-  try
-    IdHTTP.Request.Username := Configuracoes.ClientID;
-    IdHTTP.Request.Password := Configuracoes.Secret;
-
-    try
-      dthr := Now;
-
-      IdHTTP.Post(URL_TOKEN, JsonStreamEnvio, JsonStreamRetorno);
-      JsonStreamRetorno.Position := 0;
-
-      try
-        JsonObj := TJSONObject.ParseJSONValue(JsonStreamRetorno.DataString) as TJSONObject;
-      except
-        raise Exception.Create(JsonStreamRetorno.DataString);
-      end;
-
-      JsonPair := JsonObj.Get('access_token');
-
-      if Assigned(JsonPair) then
-        Configuracoes.Token := StringReplace(JsonPair.JsonValue.ToString, '"', '', [rfReplaceAll]);
-
-      JsonPair := JsonObj.Get('expires_in');
-
-      if Assigned(JsonPair) then
-        Configuracoes.Expiration := IncSecond(dthr, StrToIntDef(JsonPair.JsonValue.ToString,0));
-
-      Result := (Configuracoes.Token <> '') and (Configuracoes.Expiration > dthr);
-    except
-      on E: EIdHTTPProtocolException do
-        raise Exception.Create(E.ErrorMessage);
-    end;
-  finally
-    JsonStreamEnvio.Free;
-    JsonStreamRetorno.Free;
-  end;
 end;
 
 function TAPI_GS1.Alterar: Boolean;
@@ -413,7 +526,7 @@ begin
     raise Exception.CreateFmt('GTIN %s', [isRequired]);
 
   if (Configuracoes.Token = '') or (Configuracoes.Expiration < Now) then
-    ObtemToken;
+    ObterToken;
 
   try
     IdHTTP.Request.CustomHeaders.Clear;
@@ -448,6 +561,11 @@ begin
 
     if Assigned(JsonObj) then
     begin
+      JsonPair := JsonObj.Get('error');
+
+      if Assigned(JsonPair) then
+        raise Exception.Create(JsonStreamRetorno.DataString);
+
       if pTipoReq = trPUT then  //alteração
       begin
         JsonPair := JsonObj.Get('ok');
@@ -461,7 +579,7 @@ begin
 
         if Assigned(JsonPair) then
         begin
-          GTIN := Trim(StringReplace(JsonPair.JsonValue.ToString, '"', '', [rfReplaceAll]));
+          GTIN := AnsiDequotedStr(JsonPair.JsonValue.ToString, '"');
           Result := GTIN <> '';
         end;
       end;

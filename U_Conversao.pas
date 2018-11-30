@@ -44,10 +44,10 @@ uses SysUtils;
 
 type
   TAmbiente = (taProducao, taHomologacao);
-  TTipoGTIN = (tgGTIN8, tgGTIN12, tgGTIN13, tgGTIN14);
-  TTipoURL = (tuFoto, tuReserva, tuLinkeddata, tuYoutube, tuProduto);
-  TStatusGTIN = (stAtivo, stCancelado, stSuspenso, stReativado);
-  TTipoAgencia = (agNenhum, agANVISA, agINMETRO, agANATEL, agMAPA);
+  TTipoGTIN = (tgNenhum, tgGTIN8, tgGTIN12, tgGTIN13, tgGTIN14);
+  TTipoURL = (tuNenhum, tuFoto, tuReserva, tuLinkeddata, tuYoutube, tuProduto);
+  TStatusGTIN = (stNenhum, stAtivo, stCancelado, stSuspenso, stReativado);
+  TTipoAgencia = (agNenhuma, agANVISA, agINMETRO, agANATEL, agMAPA);
   TTipoRequisicao = (trPOST, trPUT);
 
 function TipoUrlToInt(pTipoURL: TTipoURL): Integer;
@@ -55,6 +55,8 @@ function TipoGtinToInt(pTipoGTIN: TTipoGTIN): Integer;
 function StatusGtinToInt(pStatusGTIN: TStatusGTIN): Integer;
 function AgenciaToInt(pAgencia: TTipoAgencia): Integer;
 function FloatToString(pValue: Double): String;
+function StringToFloat(pValue: String): Double;
+function StringToDateTime(pValue: String): TDateTime;
 
 implementation
 
@@ -110,6 +112,29 @@ end;
 function FloatToString(pValue: Double): String;
 begin
   Result := StringReplace(FloatToStr(pValue), ',', '.', []);
+end;
+
+function StringToFloat(pValue: String): Double;
+begin
+  Result := StrToFloatDef(StringReplace(pValue, '.', ',', []), 0);
+end;
+
+function StringToDateTime(pValue: String): TDateTime;
+var
+  tmp: TDateTime;
+  T: TFormatSettings;
+  dt, hr: String;
+begin
+  T.ShortDateFormat := 'yyyy-mm-dd';
+  T.DateSeparator   := '-';
+
+  dt := Copy(pValue, 1, 10);
+  hr := Copy(pValue, 12, 8);
+
+  if TryStrToDateTime(dt +' '+ hr, tmp, T) then
+    Result := tmp
+  else
+    Result := 0;
 end;
 
 end.
