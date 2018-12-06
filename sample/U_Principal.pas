@@ -43,7 +43,7 @@ interface
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.ExtCtrls, ShellApi,
-  Vcl.ComCtrls, Vcl.Grids, U_API_GS1, U_Conversao;
+  Vcl.ComCtrls, Vcl.Grids, IniFiles, U_API_GS1, U_Conversao;
 
 type
   TF_Principal = class(TForm)
@@ -124,8 +124,12 @@ type
     procedure Button3Click(Sender: TObject);
     procedure Label36Click(Sender: TObject);
     procedure Label37Click(Sender: TObject);
+    procedure FormShow(Sender: TObject);
+    procedure FormClose(Sender: TObject; var Action: TCloseAction);
   private
     { Private declarations }
+    procedure LoadFromIni;
+    procedure SaveToIni;
   public
     { Public declarations }
   end;
@@ -345,6 +349,16 @@ begin
   edtExpiration.Text := DateTimeToStr(api.Configuracoes.Expiration);  //o token é gerado com validade de 4 horas
 end;
 
+procedure TF_Principal.FormClose(Sender: TObject; var Action: TCloseAction);
+begin
+  SaveToIni;
+end;
+
+procedure TF_Principal.FormShow(Sender: TObject);
+begin
+  LoadFromIni;
+end;
+
 procedure TF_Principal.Label36Click(Sender: TObject);
 begin
   ShellExecute(0, 'open', 'https://www.gs1.org/services/gpc-browser', nil, nil, SW_SHOWNORMAL);
@@ -358,6 +372,40 @@ end;
 procedure TF_Principal.Label8Click(Sender: TObject);
 begin
   ShellExecute(0, 'open', 'https://apicnp.gs1br.org', nil, nil, SW_SHOWNORMAL);
+end;
+
+procedure TF_Principal.LoadFromIni;
+var
+  f: TIniFile;
+begin
+  f := TIniFile.Create(ExtractFileDir(Application.ExeName) + '\config.ini');
+
+  edtClientID.Text   := f.ReadString('Params', 'ClientID', '');
+  edtSecret.Text     := f.ReadString('Params', 'Secret', '');
+  edtUsername.Text   := f.ReadString('Params', 'Username', '');
+  edtPassword.Text   := f.ReadString('Params', 'Password', '');
+  edtCnpjCpf.Text    := f.ReadString('Params', 'CnpjCpf', '');
+  edtToken.Text      := f.ReadString('Params', 'Token', '');
+  edtExpiration.Text := f.ReadString('Params', 'Expiration', '');
+
+  f.Free;
+end;
+
+procedure TF_Principal.SaveToIni;
+var
+  f: TIniFile;
+begin
+  f := TIniFile.Create(ExtractFileDir(Application.ExeName) + '\config.ini');
+
+  f.WriteString('Params', 'ClientID', edtClientID.Text);
+  f.WriteString('Params', 'Secret', edtSecret.Text);
+  f.WriteString('Params', 'Username', edtUsername.Text);
+  f.WriteString('Params', 'Password', edtPassword.Text);
+  f.WriteString('Params', 'CnpjCpf', edtCnpjCpf.Text);
+  f.WriteString('Params', 'Token', edtToken.Text);
+  f.WriteString('Params', 'Expiration', edtExpiration.Text);
+
+  f.Free;
 end;
 
 initialization
