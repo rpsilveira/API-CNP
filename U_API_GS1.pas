@@ -210,10 +210,12 @@ type
   end;
 
 resourcestring
-  URL_TOKEN = 'https://api.gs1br.org/oauth/access-token';
-  URL_PRODUCAO = 'https://api.gs1br.org/product';
+  URL_TOKEN       = 'https://api.gs1br.org/oauth/access-token';
+  URL_TOKEN_HML   = 'https://api-hml.gs1br.org/oauth/access-token';
+  URL_PRODUCAO    = 'https://api.gs1br.org/product';
   URL_HOMOLOGACAO = 'https://api-hml.gs1br.org/product';
   isRequired = 'is required!';
+  errorToken = 'Token de acesso inválido ou não informado.';
 
 implementation
 
@@ -281,7 +283,11 @@ begin
     try
       dthr := Now;
 
-      IdHTTP.Post(URL_TOKEN, JsonStreamEnvio, JsonStreamRetorno);
+      case Configuracoes.Ambiente of
+        taProducao   : IdHTTP.Post(URL_TOKEN, JsonStreamEnvio, JsonStreamRetorno);
+        taHomologacao: IdHTTP.Post(URL_TOKEN_HML, JsonStreamEnvio, JsonStreamRetorno);
+      end;
+
       JsonStreamRetorno.Position := 0;
 
       try
@@ -293,12 +299,16 @@ begin
       JsonPair := JsonObj.Get('access_token');
 
       if Assigned(JsonPair) then
-        Configuracoes.Token := AnsiDequotedStr(JsonPair.JsonValue.ToString, '"');
+        Configuracoes.Token := AnsiDequotedStr(JsonPair.JsonValue.ToString, '"')
+      else
+        raise Exception.Create(JsonStreamRetorno.DataString);
 
       JsonPair := JsonObj.Get('expires_in');
 
       if Assigned(JsonPair) then
-        Configuracoes.Expiration := IncSecond(dthr, StrToIntDef(JsonPair.JsonValue.ToString,0));
+        Configuracoes.Expiration := IncSecond(dthr, StrToIntDef(JsonPair.JsonValue.ToString,0))
+      else
+        raise Exception.Create(JsonStreamRetorno.DataString);
 
       Result := (Configuracoes.Token <> '') and (Configuracoes.Expiration > dthr);
     except
@@ -353,7 +363,12 @@ begin
       end;
     except
       on E: EIdHTTPProtocolException do
-        raise Exception.Create(E.ErrorMessage);
+        begin
+          if E.ErrorCode = 401 then  //Unauthorized
+            raise Exception.Create(errorToken)
+          else
+            raise Exception.Create(E.ErrorMessage);
+        end;
     end;
 
     JsonStreamRetorno.Position := 0;
@@ -419,7 +434,9 @@ begin
       end;
 
       Result := GTIN <> '';
-    end;
+    end
+    else
+      raise Exception.Create(JsonStreamRetorno.DataString);
   finally
     JsonStreamRetorno.Free;
   end;
@@ -550,7 +567,12 @@ begin
       end;
     except
       on E: EIdHTTPProtocolException do
-        raise Exception.Create(E.ErrorMessage);
+        begin
+          if E.ErrorCode = 401 then  //Unauthorized
+            raise Exception.Create(errorToken)
+          else
+            raise Exception.Create(E.ErrorMessage);
+        end;
     end;
 
     JsonStreamRetorno.Position := 0;
@@ -585,7 +607,9 @@ begin
           Result := GTIN <> '';
         end;
       end;
-    end;
+    end
+    else
+      raise Exception.Create(JsonStreamRetorno.DataString);
   finally
     JsonStreamEnvio.Free;
     JsonStreamRetorno.Free;
