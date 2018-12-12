@@ -207,10 +207,14 @@ begin
         TipoURL := tuProduto;
       end;
 
-  if api.Incluir then
-  begin
-    edtGTIN.Text := api.GTIN;  //após inserido, a property é preenchida com o novo GTIN gerado
-    ShowMessage('Operação realizada com sucesso!');
+  try
+    if api.Incluir then
+    begin
+      edtGTIN.Text := api.GTIN;  //após inserido, a property é preenchida com o novo GTIN gerado
+      ShowMessage('Operação realizada com sucesso!');
+    end;
+  except on E: Exception do
+    ShowMessageFmt('Ocorreu o seguinte erro: %s', [E.Message]);
   end;
 
   edtToken.Text      := api.Configuracoes.Token;  //armazene o token e a data de expiração no banco de dados, para usar em requisições futuras
@@ -282,8 +286,12 @@ begin
         TipoURL := tuProduto;
       end;
 
-  if api.Alterar then
-    ShowMessage('Operação realizada com sucesso!');
+  try
+    if api.Alterar then
+      ShowMessage('Operação realizada com sucesso!');
+  except on E: Exception do
+    ShowMessageFmt('Ocorreu o seguinte erro: %s', [E.Message]);
+  end;
 
   edtToken.Text      := api.Configuracoes.Token;  //armazene o token e a data de expiração no banco de dados, para usar em requisições futuras
   edtExpiration.Text := DateTimeToStr(api.Configuracoes.Expiration);  //o token é gerado com validade de 4 horas
@@ -292,6 +300,7 @@ end;
 procedure TF_Principal.Button3Click(Sender: TObject);
 var
   i: Integer;
+  ok: Boolean;
 begin
   api.Configuracoes.ClientID := edtClientID.Text;  //acesse https://apicnp.gs1br.org para obter
   api.Configuracoes.Secret   := edtSecret.Text;    //acesse https://apicnp.gs1br.org para obter
@@ -313,7 +322,16 @@ begin
 
   api.GTIN := edtGTIN.Text;
 
-  if api.Consultar then
+  try
+    ok := api.Consultar;
+  except on E: Exception do
+    begin
+      ok := False;
+      ShowMessageFmt('Ocorreu o seguinte erro: %s', [E.Message]);
+    end;
+  end;
+
+  if ok then
   begin
     edtDescricao.Text       := api.Descricao;
     edtPeso.Text            := FloatToStr(api.PesoBruto);
