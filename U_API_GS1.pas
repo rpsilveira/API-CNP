@@ -214,8 +214,10 @@ resourcestring
   URL_TOKEN_HML   = 'https://api-hml.gs1br.org/oauth/access-token';
   URL_PRODUCAO    = 'https://api.gs1br.org/product';
   URL_HOMOLOGACAO = 'https://api-hml.gs1br.org/product';
-  isRequired = 'is required!';
-  errorToken = 'Token de acesso inválido ou não informado.';
+
+  isRequired  = 'is required!';
+  errorToken  = 'Token de acesso inválido ou não informado.';
+  errorClient = 'Client ID/Secret inválido(s) ou não informado(s).';
 
 implementation
 
@@ -280,41 +282,46 @@ begin
     IdHTTP.Request.Username := Configuracoes.ClientID;
     IdHTTP.Request.Password := Configuracoes.Secret;
 
-    try
-      dthr := Now;
+    dthr := Now;
 
+    try
       case Configuracoes.Ambiente of
         taProducao   : IdHTTP.Post(URL_TOKEN, JsonStreamEnvio, JsonStreamRetorno);
         taHomologacao: IdHTTP.Post(URL_TOKEN_HML, JsonStreamEnvio, JsonStreamRetorno);
       end;
-
-      JsonStreamRetorno.Position := 0;
-
-      try
-        JsonObj := TJSONObject.ParseJSONValue(JsonStreamRetorno.DataString) as TJSONObject;
-      except
-        raise Exception.Create(JsonStreamRetorno.DataString);
-      end;
-
-      JsonPair := JsonObj.Get('access_token');
-
-      if Assigned(JsonPair) then
-        Configuracoes.Token := AnsiDequotedStr(JsonPair.JsonValue.ToString, '"')
-      else
-        raise Exception.Create(JsonStreamRetorno.DataString);
-
-      JsonPair := JsonObj.Get('expires_in');
-
-      if Assigned(JsonPair) then
-        Configuracoes.Expiration := IncSecond(dthr, StrToIntDef(JsonPair.JsonValue.ToString,0))
-      else
-        raise Exception.Create(JsonStreamRetorno.DataString);
-
-      Result := (Configuracoes.Token <> '') and (Configuracoes.Expiration > dthr);
     except
       on E: EIdHTTPProtocolException do
-        raise Exception.Create(E.ErrorMessage);
+        begin
+          if E.ErrorCode = 400 then  //Bad Request
+            raise Exception.Create(errorClient)
+          else
+            raise Exception.Create(E.ErrorMessage);
+        end;
     end;
+
+    JsonStreamRetorno.Position := 0;
+
+    try
+      JsonObj := TJSONObject.ParseJSONValue(JsonStreamRetorno.DataString) as TJSONObject;
+    except
+      raise Exception.Create(JsonStreamRetorno.DataString);
+    end;
+
+    JsonPair := JsonObj.Get('access_token');
+
+    if Assigned(JsonPair) then
+      Configuracoes.Token := AnsiDequotedStr(JsonPair.JsonValue.ToString, '"')
+    else
+      raise Exception.Create(JsonStreamRetorno.DataString);
+
+    JsonPair := JsonObj.Get('expires_in');
+
+    if Assigned(JsonPair) then
+      Configuracoes.Expiration := IncSecond(dthr, StrToIntDef(JsonPair.JsonValue.ToString,0))
+    else
+      raise Exception.Create(JsonStreamRetorno.DataString);
+
+    Result := (Configuracoes.Token <> '') and (Configuracoes.Expiration > dthr);
   finally
     JsonStreamEnvio.Free;
     JsonStreamRetorno.Free;
